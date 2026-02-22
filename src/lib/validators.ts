@@ -17,7 +17,7 @@ export const productQuerySchema = z.object({
     minPrecio: z.coerce.number().optional(),
     maxPrecio: z.coerce.number().optional(),
     page: z.coerce.number().min(1).default(1),
-    limit: z.coerce.number().min(1).max(50).default(12),
+    limit: z.coerce.number().min(1).max(100).default(12),
     orderBy: z.enum(['precio_asc', 'precio_desc', 'nombre', 'reciente']).default('reciente'),
 });
 

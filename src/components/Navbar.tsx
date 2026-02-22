@@ -5,7 +5,7 @@ import { useCart } from '@/context/CartContext';
 import { useState, useEffect } from 'react';
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const { itemCount, fetchCart } = useCart();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -28,34 +28,39 @@ export default function Navbar() {
         </ul>
 
         <div className="navbar-actions">
-          {user && (
-            <Link href="/carrito" className="cart-badge">
-              🛒
-              {itemCount > 0 && <span className="cart-count">{itemCount}</span>}
-            </Link>
-          )}
-
-          {user ? (
-            <div className="user-menu">
-              <button className="user-btn" onClick={() => setDropdownOpen(!dropdownOpen)}>
-                👤 {user.nombre.split(' ')[0]}
-              </button>
-              {dropdownOpen && (
-                <div className="user-dropdown open">
-                  <Link href="/pedidos" onClick={() => setDropdownOpen(false)}>📦 Mis Pedidos</Link>
-                  {user.rol === 'ADMIN' && (
-                    <Link href="/admin" onClick={() => setDropdownOpen(false)}>⚙️ Panel Admin</Link>
-                  )}
-                  <button onClick={() => { logout(); setDropdownOpen(false); }}>🚪 Cerrar Sesión</button>
-                </div>
-              )}
-            </div>
-          ) : (
+          {!loading && (
             <>
-              <Link href="/login" className="btn btn-secondary btn-sm">Ingresar</Link>
-              <Link href="/registro" className="btn btn-primary btn-sm">Registrarse</Link>
+              {user && (
+                <Link href="/carrito" className="cart-badge">
+                  🛒
+                  {itemCount > 0 && <span className="cart-count">{itemCount}</span>}
+                </Link>
+              )}
+
+              {user ? (
+                <div className="user-menu">
+                  <button className="user-btn" onClick={() => setDropdownOpen(!dropdownOpen)}>
+                    👤 {user.nombre.split(' ')[0]}
+                  </button>
+                  {dropdownOpen && (
+                    <div className="user-dropdown open">
+                      <Link href="/pedidos" onClick={() => setDropdownOpen(false)}>📦 Mis Pedidos</Link>
+                      {user.rol === 'ADMIN' && (
+                        <Link href="/admin" onClick={() => setDropdownOpen(false)}>⚙️ Panel Admin</Link>
+                      )}
+                      <button onClick={() => { logout(); setDropdownOpen(false); }}>🚪 Cerrar Sesión</button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Link href="/login" className="btn btn-secondary btn-sm">Ingresar</Link>
+                  <Link href="/registro" className="btn btn-primary btn-sm">Registrarse</Link>
+                </>
+              )}
             </>
           )}
+          {loading && <div style={{ width: 150 }} /> /* Placeholder to avoid layout shift */}
         </div>
       </div>
     </nav>
