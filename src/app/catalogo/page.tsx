@@ -46,7 +46,11 @@ function CatalogContent() {
 
   useEffect(() => {
     fetchProducts();
-    fetch('/api/categories').then(r => r.json()).then(d => setCategories(d || []));
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) setCategories(d);
+      });
   }, []);
 
   useEffect(() => {
@@ -65,8 +69,12 @@ function CatalogContent() {
     fetch(`/api/products?${params}`)
       .then(r => r.json())
       .then(d => {
-        setProducts(d.productos || []);
-        setPagination(d.pagination || { page: 1, totalPages: 1, total: 0 });
+        if (d.productos && Array.isArray(d.productos)) {
+          setProducts(d.productos);
+          setPagination(d.pagination || { page: 1, totalPages: 1, total: 0 });
+        } else {
+          setProducts([]);
+        }
       })
       .finally(() => setLoading(false));
   }

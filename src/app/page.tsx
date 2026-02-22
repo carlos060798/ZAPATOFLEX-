@@ -26,10 +26,18 @@ export default function HomePage() {
   useEffect(() => {
     fetch('/api/products?limit=8&orderBy=reciente')
       .then(r => r.json())
-      .then(d => setProducts(d.productos || []));
+      .then(d => {
+        if (d && d.productos && Array.isArray(d.productos)) {
+          setProducts(d.productos);
+        }
+      });
     fetch('/api/categories')
       .then(r => r.json())
-      .then(d => setCategories(d || []));
+      .then(d => {
+        if (Array.isArray(d)) {
+          setCategories(d);
+        }
+      });
   }, []);
 
   const categoryIcons: Record<string, string> = {
