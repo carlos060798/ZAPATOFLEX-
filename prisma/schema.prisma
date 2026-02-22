@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Usuario {
+  id         Int         @id @default(autoincrement())
+  nombre     String
+  email      String      @unique
+  password   String
+  rol        String      @default("CLIENTE") // CLIENTE | ADMIN
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  direcciones Direccion[]
+  pedidos    Pedido[]
+  carrito    Carrito?
+}
+
+model Direccion {
+  id         Int      @id @default(autoincrement())
+  calle      String
+  ciudad     String
+  estado     String
+  codigoPostal String
+  pais       String   @default("México")
+  usuarioId  Int
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Categoria {
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
+  slug      String     @unique
+  imagen    String     @default("")
+  productos Producto[]
+}
+
+model Producto {
+  id          Int              @id @default(autoincrement())
+  nombre      String
+  slug        String           @unique
+  descripcion String
+  precio      Float
+  stock       Int              @default(0)
+  categoriaId Int
+  categoria   Categoria        @relation(fields: [categoriaId], references: [id])
+  imagenes    ImagenProducto[]
+  carritoItems CarritoItem[]
+  lineasPedido LineaPedido[]
+  inventario  Inventario?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ImagenProducto {
+  id         Int      @id @default(autoincrement())
+  url        String
+  alt        String   @default("")
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+}
+
+model Carrito {
+  id        Int           @id @default(autoincrement())
+  usuarioId Int           @unique
+  usuario   Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  items     CarritoItem[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model CarritoItem {
+  id         Int      @id @default(autoincrement())
+  cantidad   Int      @default(1)
+  carritoId  Int
+  carrito    Carrito  @relation(fields: [carritoId], references: [id], onDelete: Cascade)
+  productoId Int
+  producto   Producto @relation(fields: [productoId], references: [id])
+  @@unique([carritoId, productoId])
+}
+
+model Pedido {
+  id        Int          @id @default(autoincrement())
+  fecha     DateTime     @default(now())
+  estado    String       @default("PENDIENTE") // PENDIENTE | CONFIRMADO | ENVIADO | ENTREGADO | CANCELADO
+  total     Float
+  direccion String       @default("")
+  usuarioId Int
+  usuario   Usuario      @relation(fields: [usuarioId], references: [id])
+  items     LineaPedido[]
+  pago      Pago?
+  updatedAt DateTime     @updatedAt
+}
+
+model LineaPedido {
+  id          Int      @id @default(autoincrement())
+  cantidad    Int
+  precioUnit  Float
+  productoId  Int
+  producto    Producto @relation(fields: [productoId], references: [id])
+  pedidoId    Int
+  pedido      Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+}
+
+model Pago {
+  id         Int      @id @default(autoincrement())
+  monto      Float
+  estado     String   @default("PENDIENTE") // PENDIENTE | COMPLETADO | FALLIDO
+  referencia String   @unique
+  metodo     String   @default("SIMULADO")
+  pedidoId   Int      @unique
+  pedido     Pedido   @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+}
+
+model Inventario {
+  id         Int      @id @default(autoincrement())
+  cantidad   Int      @default(0)
+  minimo     Int      @default(5)
+  productoId Int      @unique
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  updatedAt  DateTime @updatedAt
+}
