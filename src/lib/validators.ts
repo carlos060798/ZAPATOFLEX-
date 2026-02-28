@@ -31,7 +31,7 @@ export const updateCartItemSchema = z.object({
 });
 
 export const createOrderSchema = z.object({
-    direccion: z.string().min(5, 'La dirección es requerida'),
+    direccion: z.string().min(5, 'La dirección debe tener al menos 5 caracteres'),
 });
 
 export const updateOrderStatusSchema = z.object({

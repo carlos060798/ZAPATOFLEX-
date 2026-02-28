@@ -36,7 +36,21 @@ export default function CheckoutPage() {
       setOrderId(data.id);
       setStep('payment');
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al crear pedido');
+      let msg = 'Error al crear pedido';
+      if (err instanceof Error) {
+        try {
+          // Si el mensaje es un JSON de Zod, tratamos de parsearlo
+          const parseado = JSON.parse(err.message);
+          if (Array.isArray(parseado) && parseado[0]?.message) {
+            msg = parseado[0].message;
+          } else {
+             msg = err.message;
+          }
+        } catch {
+          msg = err.message;
+        }
+      }
+      setError(msg);
     } finally { setLoading(false); }
   }
 
