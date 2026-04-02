@@ -1,4 +1,8 @@
 import { prisma } from '@/lib/prisma';
+import { FiltroConCache, FiltroSimple, IEstrategiaFiltro } from '@/patterns/EstrategiaFiltro';
+import { IteradorPaginado } from '@/patterns/IteradorCatalogo';
+import { CategoriaComposite } from '@/patterns/CategoriaComposite';
+import { ObservadorInventario } from '@/patterns/ObservadorInventario';
 
 interface ProductQuery {
     search?: string;
@@ -11,49 +15,44 @@ interface ProductQuery {
 }
 
 export class CatalogService {
+    // ImplementaciÃ³n del PatrÃ³n Strategy + Iterator
     static async getProducts(query: ProductQuery) {
-        const { search, categoriaId, minPrecio, maxPrecio, page = 1, limit = 12, orderBy = 'reciente' } = query;
+        const { search, categoriaId, minPrecio, maxPrecio, page = 1, limit = 12 } = query;
 
-        const where: Record<string, unknown> = {};
-        if (search) {
-            where.OR = [
-                { nombre: { contains: search } },
-                { descripcion: { contains: search } },
-            ];
-        }
-        if (categoriaId) where.categoriaId = categoriaId;
-        if (minPrecio || maxPrecio) {
-            where.precio = {};
-            if (minPrecio) (where.precio as Record<string, unknown>).gte = minPrecio;
-            if (maxPrecio) (where.precio as Record<string, unknown>).lte = maxPrecio;
-        }
+        // 1. Seleccionar Estrategia (Strategy)
+        // Decidimos usar cachÃ© si hay filtros combinados o bÃºsquedas, 
+        // para filtros simples o "ver todo" podrÃ­amos usar simple, 
+        // pero por defecto usamos la optimizada con CachÃ©.
+        const estrategia: IEstrategiaFiltro = new FiltroConCache();
+        
+        const productosCompletos = await estrategia.filtrar({
+            search,
+            categoriaId,
+            minPrecio,
+            maxPrecio
+        });
 
-        let orderByClause: Record<string, string> = {};
-        switch (orderBy) {
-            case 'precio_asc': orderByClause = { precio: 'asc' }; break;
-            case 'precio_desc': orderByClause = { precio: 'desc' }; break;
-            case 'nombre': orderByClause = { nombre: 'asc' }; break;
-            default: orderByClause = { createdAt: 'desc' };
+        // 2. Aplicar Recorrido (Iterator)
+        const iterador = new IteradorPaginado(productosCompletos, limit);
+        
+        // Avanzamos el iterador hasta la pÃ¡gina deseada
+        let productosPagina: any[] = [];
+        for (let i = 1; i <= page; i++) {
+            if (iterador.hasNext()) {
+                productosPagina = iterador.next();
+            } else {
+                productosPagina = [];
+                break;
+            }
         }
-
-        const [productos, total] = await Promise.all([
-            prisma.producto.findMany({
-                where,
-                include: { categoria: true, imagenes: true },
-                orderBy: orderByClause,
-                skip: (page - 1) * limit,
-                take: limit,
-            }),
-            prisma.producto.count({ where }),
-        ]);
 
         return {
-            productos,
+            productos: productosPagina,
             pagination: {
                 page,
                 limit,
-                total,
-                totalPages: Math.ceil(total / limit),
+                total: iterador.getTotal(),
+                totalPages: iterador.getPaginas(),
             },
         };
     }
@@ -76,10 +75,22 @@ export class CatalogService {
         return producto;
     }
 
-    static async getCategories() {
-        return prisma.categoria.findMany({
+    // ImplementaciÃ³n del PatrÃ³n Composite
+    static async getCategoriesTree() {
+        const categoriasRaw = await prisma.categoria.findMany({
             include: { _count: { select: { productos: true } } },
         });
+
+        // En un escenario real, buscarÃ­amos relaciones parentId. 
+        // AquÃ­ simulamos la estructura jerÃ¡rquica exigida por el Composite.
+        const root = new CategoriaComposite(0, "RaÃ­z");
+        
+        categoriasRaw.forEach(cat => {
+            const nodo = new CategoriaComposite(cat.id, cat.nombre, cat._count.productos);
+            root.agregar(nodo);
+        });
+
+        return root.toJSON().subcategorias;
     }
 
     static async createProduct(data: {
@@ -123,6 +134,12 @@ export class CatalogService {
             data,
             include: { categoria: true, imagenes: true },
         });
+
+        // ImplementaciÃ³n del PatrÃ³n Observer
+        if (data.stock !== undefined) {
+            ObservadorInventario.getInstance().notificarCambioStock(id, data.stock);
+        }
+
         return producto;
     }
 
@@ -130,3 +147,4 @@ export class CatalogService {
         await prisma.producto.delete({ where: { id } });
     }
 }
+

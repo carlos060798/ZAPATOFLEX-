@@ -54,6 +54,10 @@ model Producto {
   inventario  Inventario?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
+  @@index([nombre])
+  @@index([categoriaId])
+  @@index([precio])
 }
 
 model ImagenProducto {
@@ -71,6 +75,8 @@ model Carrito {
   items     CarritoItem[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
+
+  @@index([usuarioId])
 }
 
 model CarritoItem {
@@ -81,6 +87,9 @@ model CarritoItem {
   productoId Int
   producto   Producto @relation(fields: [productoId], references: [id])
   @@unique([carritoId, productoId])
+
+  @@index([carritoId])
+  @@index([productoId])
 }
 
 model Pedido {

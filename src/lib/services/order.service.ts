@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { CartService } from './cart.service';
+import { stockQueue, emailQueue } from '@/lib/queues';
 
 export class OrderService {
     static async createOrder(usuarioId: number, direccion: string) {
@@ -36,20 +37,25 @@ export class OrderService {
             },
         });
 
-        // Update stock
-        for (const item of carrito.items) {
-            await prisma.producto.update({
-                where: { id: item.productoId },
-                data: { stock: { decrement: item.cantidad } },
-            });
-            await prisma.inventario.updateMany({
-                where: { productoId: item.productoId },
-                data: { cantidad: { decrement: item.cantidad } },
-            });
-        }
+        // ==========================================
+        // OPTIMIZACIÃN: ENQUEUE PARA WORKERS
+        // En vez de hacer bloqueantes las consultas de
+        // descontar stock y limpiar carrito (que tomaban
+        // mÃºltiples ciclos BD), las delegamos a la Cola AsÃ­ncrona.
+        // ==========================================
+        await stockQueue.add(
+            { usuarioId, items: carrito.items },
+            { attempts: 3, backoff: 5000 }
+        );
 
-        // Clear cart
-        await CartService.clearCart(usuarioId);
+        // Opcional: Cola de correo listos para enviar
+        const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+        if (usuario?.email) {
+            await emailQueue.add(
+                { email: usuario.email, ordenId: pedido.id },
+                { delay: 1000 }
+            );
+        }
 
         return pedido;
     }
